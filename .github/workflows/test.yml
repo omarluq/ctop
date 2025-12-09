@@ -1,0 +1,28 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**/*.cr"
+      - "spec/**/*.cr"
+      - "shard.yml"
+      - "shard.lock"
+      - ".github/workflows/test.yml"
+      - ".github/actions/**"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Crystal Environment
+        uses: ./.github/actions/setup-crystal
+      - name: Run tests
+        run: task spec

@@ -1,0 +1,28 @@
+version: "3"
+tasks:
+  spec:
+    desc: Run crystal spec
+    cmds:
+      - crystal spec
+  run:
+    desc: Run the main file
+    cmds:
+      - crystal run src/ctop.cr
+  build:
+    desc: Build the project
+    cmds:
+      - crystal build src/ctop.cr -o bin/ctop --release
+  format:
+    desc: Format code with crystal tool format  (use -- to pass flags)
+    cmds:
+      - crystal tool format {{.CLI_ARGS}}
+  ameba:
+    desc: Run Ameba linter (use -- to pass flags)
+    cmds:
+      - bin/ameba {{.CLI_ARGS}}
+  all:
+    desc: Format, lint, and test
+    cmds:
+      - task: format
+      - task: ameba
+      - task: spec
