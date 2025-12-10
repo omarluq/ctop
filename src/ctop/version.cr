@@ -1,4 +1,4 @@
-# Version information for Termisu.
+# Version information for Ctop
 #
 # All version components are parsed from shard.yml at compile time.
 # Format: MAJOR.MINOR.PATCH[-STATE] (e.g., "0.1.0-alpha", "1.0.0")

@@ -1,6 +1,5 @@
-# TODO: Write documentation for `Ctop`
+# Terminal-based system monitor
 class Ctop
-  # TODO: Put your code here
   Log = ::Log.for("ctop")
 end
 

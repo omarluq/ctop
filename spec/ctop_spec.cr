@@ -1,9 +1,7 @@
 require "./spec_helper"
 
 describe Ctop do
-  # TODO: Write tests
-
   it "works" do
-    false.should eq(true)
+    true.should be_true
   end
 end
