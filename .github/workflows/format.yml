@@ -24,4 +24,4 @@ jobs:
         with:
           install-shards: "false"
       - name: Check formatting
-        run: task format -- --check
+        run: crystal tool format --check
