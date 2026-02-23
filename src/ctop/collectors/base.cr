@@ -2,11 +2,22 @@ require "hardware"
 
 # Base class for all collectors providing shared timing utilities.
 #
-# Collectors follow a consistent pattern:
-# - Each defines a `Snapshot` record type for immutable data
-# - Each implements `collect` returning its Snapshot type
-# - Rate calculations use `elapsed_seconds` from base
-abstract class Ctop::Collectors::Base
+# Generic type `T` represents the Snapshot type returned by `collect`.
+# Each collector defines its own Snapshot record and inherits from Base(Snapshot).
+#
+# ```
+# class CPU < Base(CPU::Snapshot)
+#   record Snapshot, usage : Float64
+#
+#   def collect : Snapshot
+#     Snapshot.new(usage: 50.0)
+#   end
+# end
+# ```
+abstract class Ctop::Collectors::Base(T)
+  # Collect metrics and return an immutable snapshot
+  abstract def collect : T
+
   @last_time : Time::Span?
 
   # Returns seconds since last collection, defaulting to 1.0 for first call.
