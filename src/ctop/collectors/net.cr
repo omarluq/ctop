@@ -9,20 +9,13 @@
 #   puts "Up: #{(snapshot.tx_rate / 1024).round(1)} KB/s"
 # end
 # ```
-class Ctop::Collectors::Net < Ctop::Collectors::Base
-  # Immutable snapshot of network metrics
-  record Snapshot,
-    rx_bytes : Int64,  # Total bytes received
-    tx_bytes : Int64,  # Total bytes transmitted
-    rx_rate : Float64, # Receive rate in bytes/sec
-    tx_rate : Float64  # Transmit rate in bytes/sec
-
+class Ctop::Collectors::Net < Ctop::Collectors::Base(Ctop::Snapshots::Net)
   @last_rx : Int64 = 0_i64
   @last_tx : Int64 = 0_i64
   @first_collect : Bool = true
 
   # Collect current network state. First call returns zero rates.
-  def collect : Snapshot
+  def collect : Ctop::Snapshots::Net
     hw = Hardware::Net.new
     rx = hw.in_octets
     tx = hw.out_octets
@@ -41,7 +34,7 @@ class Ctop::Collectors::Net < Ctop::Collectors::Base
     @last_rx = rx
     @last_tx = tx
 
-    Snapshot.new(
+    Ctop::Snapshots::Net.new(
       rx_bytes: rx,
       tx_bytes: tx,
       rx_rate: rx_rate.clamp(0.0, Float64::MAX),

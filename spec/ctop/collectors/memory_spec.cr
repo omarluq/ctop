@@ -12,7 +12,7 @@ describe Ctop::Collectors::Memory do
     it "returns a Snapshot" do
       memory = Ctop::Collectors::Memory.new
       snapshot = memory.collect
-      snapshot.should be_a(Ctop::Collectors::Memory::Snapshot)
+      snapshot.should be_a(Ctop::Snapshots::Memory)
     end
 
     it "returns positive total_bytes" do
@@ -54,7 +54,7 @@ describe Ctop::Collectors::Memory do
 
   describe "Snapshot" do
     it "is immutable (record)" do
-      snapshot = Ctop::Collectors::Memory::Snapshot.new(
+      snapshot = Ctop::Snapshots::Memory.new(
         total_bytes: 16_000_000_000_i64,
         used_bytes: 8_000_000_000_i64,
         available_bytes: 8_000_000_000_i64,
@@ -68,15 +68,15 @@ describe Ctop::Collectors::Memory do
     end
 
     it "supports equality comparison" do
-      s1 = Ctop::Collectors::Memory::Snapshot.new(
+      s1 = Ctop::Snapshots::Memory.new(
         total_bytes: 1000_i64, used_bytes: 500_i64,
         available_bytes: 500_i64, percent: 50.0
       )
-      s2 = Ctop::Collectors::Memory::Snapshot.new(
+      s2 = Ctop::Snapshots::Memory.new(
         total_bytes: 1000_i64, used_bytes: 500_i64,
         available_bytes: 500_i64, percent: 50.0
       )
-      s3 = Ctop::Collectors::Memory::Snapshot.new(
+      s3 = Ctop::Snapshots::Memory.new(
         total_bytes: 2000_i64, used_bytes: 500_i64,
         available_bytes: 500_i64, percent: 50.0
       )

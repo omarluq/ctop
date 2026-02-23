@@ -8,8 +8,10 @@ tasks:
   build:
     description: Build the project
     always_run: true
+    outputs:
+      - bin/ctop
     commands: |
-      crystal build src/ctop.cr -o bin/ctop --release
+      crystal build src/ctop.cr -o bin/ctop -Dpreview_mt --release
   spec:
     description: Run crystal spec
     phony: true

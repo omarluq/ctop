@@ -8,21 +8,7 @@
 #   puts "#{p.name}: #{p.cpu_percent.round(1)}% CPU, #{p.memory_kb / 1024} MB"
 # end
 # ```
-class Ctop::Collectors::Proc < Ctop::Collectors::Base
-  # Information about a single process
-  record ProcessInfo,
-    pid : Int64,
-    name : String,
-    state : Hardware::PID::Stat::State,
-    cpu_percent : Float64,
-    memory_kb : Int32,
-    command : String
-
-  # Immutable snapshot of process list
-  record Snapshot,
-    processes : Array(ProcessInfo), # Sorted by CPU usage descending
-    total_count : Int32             # Total number of processes
-
+class Ctop::Collectors::Proc < Ctop::Collectors::Base(Ctop::Snapshots::Proc)
   # Track PID stats for cpu_usage! calculations across calls
   @pid_stats : Hash(Int64, Hardware::PID::Stat) = {} of Int64 => Hardware::PID::Stat
   @cpu : Hardware::CPU
@@ -31,10 +17,14 @@ class Ctop::Collectors::Proc < Ctop::Collectors::Base
     @cpu = Hardware::CPU.new
   end
 
-  # Collect process list, sorted by CPU usage.
-  # Returns up to `limit` processes (default 100).
-  def collect(limit : Int32 = 100) : Snapshot
-    processes = [] of ProcessInfo
+  # Collect process list, sorted by CPU usage (default limit 100).
+  def collect : Ctop::Snapshots::Proc
+    collect(100)
+  end
+
+  # Collect with custom limit on number of processes returned.
+  def collect(limit : Int32) : Ctop::Snapshots::Proc
+    processes = [] of Ctop::Snapshots::ProcessInfo
     current_pids = Set(Int64).new
 
     # Iterate over all PIDs, handling race conditions where processes exit
@@ -55,18 +45,18 @@ class Ctop::Collectors::Proc < Ctop::Collectors::Base
     processes.sort_by!(&.cpu_percent)
     processes.reverse!
 
-    Snapshot.new(
+    Ctop::Snapshots::Proc.new(
       processes: processes.first(limit),
       total_count: processes.size
     )
   end
 
-  private def collect_process_info(pid : Hardware::PID) : ProcessInfo?
+  private def collect_process_info(pid : Hardware::PID) : Ctop::Snapshots::ProcessInfo?
     # Get or create stat tracker for this PID
     stat = @pid_stats[pid.number]? || pid.stat(@cpu)
     @pid_stats[pid.number] = stat
 
-    ProcessInfo.new(
+    Ctop::Snapshots::ProcessInfo.new(
       pid: pid.number,
       name: pid.name,
       state: stat.state,

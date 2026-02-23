@@ -12,7 +12,7 @@ describe Ctop::Collectors::Net do
     it "returns a Snapshot" do
       net = Ctop::Collectors::Net.new
       snapshot = net.collect
-      snapshot.should be_a(Ctop::Collectors::Net::Snapshot)
+      snapshot.should be_a(Ctop::Snapshots::Net)
     end
 
     it "returns non-negative rx_bytes" do
@@ -76,7 +76,7 @@ describe Ctop::Collectors::Net do
 
   describe "Snapshot" do
     it "is immutable (record)" do
-      snapshot = Ctop::Collectors::Net::Snapshot.new(
+      snapshot = Ctop::Snapshots::Net.new(
         rx_bytes: 1000_i64,
         tx_bytes: 500_i64,
         rx_rate: 100.0,
@@ -90,15 +90,15 @@ describe Ctop::Collectors::Net do
     end
 
     it "supports equality comparison" do
-      s1 = Ctop::Collectors::Net::Snapshot.new(
+      s1 = Ctop::Snapshots::Net.new(
         rx_bytes: 1000_i64, tx_bytes: 500_i64,
         rx_rate: 100.0, tx_rate: 50.0
       )
-      s2 = Ctop::Collectors::Net::Snapshot.new(
+      s2 = Ctop::Snapshots::Net.new(
         rx_bytes: 1000_i64, tx_bytes: 500_i64,
         rx_rate: 100.0, tx_rate: 50.0
       )
-      s3 = Ctop::Collectors::Net::Snapshot.new(
+      s3 = Ctop::Snapshots::Net.new(
         rx_bytes: 2000_i64, tx_bytes: 500_i64,
         rx_rate: 100.0, tx_rate: 50.0
       )

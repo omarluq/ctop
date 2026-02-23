@@ -12,13 +12,13 @@ describe Ctop::Collectors::Proc do
     it "returns a Snapshot" do
       proc = Ctop::Collectors::Proc.new
       snapshot = proc.collect
-      snapshot.should be_a(Ctop::Collectors::Proc::Snapshot)
+      snapshot.should be_a(Ctop::Snapshots::Proc)
     end
 
     it "returns processes array" do
       proc = Ctop::Collectors::Proc.new
       snapshot = proc.collect
-      snapshot.processes.should be_a(Array(Ctop::Collectors::Proc::ProcessInfo))
+      snapshot.processes.should be_a(Array(Ctop::Snapshots::ProcessInfo))
     end
 
     it "returns positive total_count" do
@@ -79,7 +79,7 @@ describe Ctop::Collectors::Proc do
 
   describe "Snapshot" do
     it "is immutable (record)" do
-      info = Ctop::Collectors::Proc::ProcessInfo.new(
+      info = Ctop::Snapshots::ProcessInfo.new(
         pid: 1234_i64,
         name: "test",
         state: Hardware::PID::Stat::State::Running,
@@ -88,7 +88,7 @@ describe Ctop::Collectors::Proc do
         command: "/usr/bin/test"
       )
 
-      snapshot = Ctop::Collectors::Proc::Snapshot.new(
+      snapshot = Ctop::Snapshots::Proc.new(
         processes: [info],
         total_count: 1
       )
@@ -100,19 +100,19 @@ describe Ctop::Collectors::Proc do
 
   describe "ProcessInfo record" do
     it "supports equality comparison" do
-      p1 = Ctop::Collectors::Proc::ProcessInfo.new(
+      p1 = Ctop::Snapshots::ProcessInfo.new(
         pid: 1234_i64, name: "test",
         state: Hardware::PID::Stat::State::Running,
         cpu_percent: 5.0, memory_kb: 1024,
         command: "/usr/bin/test"
       )
-      p2 = Ctop::Collectors::Proc::ProcessInfo.new(
+      p2 = Ctop::Snapshots::ProcessInfo.new(
         pid: 1234_i64, name: "test",
         state: Hardware::PID::Stat::State::Running,
         cpu_percent: 5.0, memory_kb: 1024,
         command: "/usr/bin/test"
       )
-      p3 = Ctop::Collectors::Proc::ProcessInfo.new(
+      p3 = Ctop::Snapshots::ProcessInfo.new(
         pid: 5678_i64, name: "other",
         state: Hardware::PID::Stat::State::Running,
         cpu_percent: 5.0, memory_kb: 1024,

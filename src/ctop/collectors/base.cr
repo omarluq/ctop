@@ -18,12 +18,12 @@ abstract class Ctop::Collectors::Base(T)
   # Collect metrics and return an immutable snapshot
   abstract def collect : T
 
-  @last_time : Time::Span?
+  @last_time : Time::Instant?
 
   # Returns seconds since last collection, defaulting to 1.0 for first call.
   # Used for rate calculations (bytes/sec, etc.)
   protected def elapsed_seconds : Float64
-    now = Time.monotonic
+    now = Time.instant
     result = @last_time.try { |last| (now - last).total_seconds } || 1.0
     @last_time = now
     result.clamp(0.001, Float64::MAX) # Prevent division by zero

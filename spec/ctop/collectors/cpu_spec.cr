@@ -12,7 +12,7 @@ describe Ctop::Collectors::CPU do
     it "returns a Snapshot" do
       cpu = Ctop::Collectors::CPU.new
       snapshot = cpu.collect
-      snapshot.should be_a(Ctop::Collectors::CPU::Snapshot)
+      snapshot.should be_a(Ctop::Snapshots::CPU)
     end
 
     it "returns usage between 0 and 100 after warmup" do
@@ -58,7 +58,7 @@ describe Ctop::Collectors::CPU do
 
   describe "Snapshot" do
     it "is immutable (record)" do
-      snapshot = Ctop::Collectors::CPU::Snapshot.new(
+      snapshot = Ctop::Snapshots::CPU.new(
         usage: 50.0,
         per_core: [25.0, 75.0]
       )
@@ -68,9 +68,9 @@ describe Ctop::Collectors::CPU do
     end
 
     it "supports equality comparison" do
-      s1 = Ctop::Collectors::CPU::Snapshot.new(usage: 50.0, per_core: [25.0])
-      s2 = Ctop::Collectors::CPU::Snapshot.new(usage: 50.0, per_core: [25.0])
-      s3 = Ctop::Collectors::CPU::Snapshot.new(usage: 60.0, per_core: [25.0])
+      s1 = Ctop::Snapshots::CPU.new(usage: 50.0, per_core: [25.0])
+      s2 = Ctop::Snapshots::CPU.new(usage: 50.0, per_core: [25.0])
+      s3 = Ctop::Snapshots::CPU.new(usage: 60.0, per_core: [25.0])
 
       s1.should eq(s2)
       s1.should_not eq(s3)

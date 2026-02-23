@@ -27,13 +27,6 @@ class Ctop::Collectors::Manager
   getter net : Net
   getter proc : Proc
 
-  # Combined snapshot of all system metrics
-  record Metrics,
-    cpu : CPU::Snapshot,
-    memory : Memory::Snapshot,
-    net : Net::Snapshot,
-    proc : Proc::Snapshot
-
   def initialize
     @cpu = CPU.new
     @memory = Memory.new
@@ -45,8 +38,8 @@ class Ctop::Collectors::Manager
   #
   # Returns a Metrics record containing snapshots from all collectors.
   # Call this on each timer tick to refresh the UI.
-  def collect : Metrics
-    Metrics.new(
+  def collect : Ctop::Snapshots::Metrics
+    Ctop::Snapshots::Metrics.new(
       cpu: @cpu.collect,
       memory: @memory.collect,
       net: @net.collect,
@@ -55,8 +48,8 @@ class Ctop::Collectors::Manager
   end
 
   # Collect with custom process limit.
-  def collect(proc_limit : Int32) : Metrics
-    Metrics.new(
+  def collect(proc_limit : Int32) : Ctop::Snapshots::Metrics
+    Ctop::Snapshots::Metrics.new(
       cpu: @cpu.collect,
       memory: @memory.collect,
       net: @net.collect,

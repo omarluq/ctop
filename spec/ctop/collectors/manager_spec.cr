@@ -21,17 +21,17 @@ describe Ctop::Collectors::Manager do
     it "returns a Metrics record" do
       manager = Ctop::Collectors::Manager.new
       metrics = manager.collect
-      metrics.should be_a(Ctop::Collectors::Manager::Metrics)
+      metrics.should be_a(Ctop::Snapshots::Metrics)
     end
 
     it "contains all collector snapshots" do
       manager = Ctop::Collectors::Manager.new
       metrics = manager.collect
 
-      metrics.cpu.should be_a(Ctop::Collectors::CPU::Snapshot)
-      metrics.memory.should be_a(Ctop::Collectors::Memory::Snapshot)
-      metrics.net.should be_a(Ctop::Collectors::Net::Snapshot)
-      metrics.proc.should be_a(Ctop::Collectors::Proc::Snapshot)
+      metrics.cpu.should be_a(Ctop::Snapshots::CPU)
+      metrics.memory.should be_a(Ctop::Snapshots::Memory)
+      metrics.net.should be_a(Ctop::Snapshots::Net)
+      metrics.proc.should be_a(Ctop::Snapshots::Proc)
     end
 
     it "returns valid CPU metrics" do
@@ -98,10 +98,10 @@ describe Ctop::Collectors::Manager do
 
       # Can call individual collectors directly
       cpu_snapshot = manager.cpu.collect
-      cpu_snapshot.should be_a(Ctop::Collectors::CPU::Snapshot)
+      cpu_snapshot.should be_a(Ctop::Snapshots::CPU)
 
       memory_snapshot = manager.memory.collect
-      memory_snapshot.should be_a(Ctop::Collectors::Memory::Snapshot)
+      memory_snapshot.should be_a(Ctop::Snapshots::Memory)
     end
   end
 end
