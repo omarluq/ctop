@@ -12,12 +12,7 @@
 #
 # NOTE: Per-core stats currently return zero due to a parsing bug in the
 # hardware library. Total CPU usage works correctly.
-class Ctop::Collectors::CPU < Ctop::Collectors::Base
-  # Immutable snapshot of CPU metrics
-  record Snapshot,
-    usage : Float64,          # Total CPU usage 0-100%
-    per_core : Array(Float64) # Per-core usage 0-100% (currently zeros)
-
+class Ctop::Collectors::CPU < Ctop::Collectors::Base(Ctop::Snapshots::CPU)
   @hw_cpu : Hardware::CPU
 
   def initialize
@@ -25,10 +20,10 @@ class Ctop::Collectors::CPU < Ctop::Collectors::Base
   end
 
   # Collect current CPU usage. First call establishes baseline.
-  def collect : Snapshot
+  def collect : Ctop::Snapshots::CPU
     # Per-core CPU parsing is broken in hardware lib (breaks too early)
     # For now, return zeros for per_core and use total CPU only
-    Snapshot.new(
+    Ctop::Snapshots::CPU.new(
       usage: @hw_cpu.usage!,
       per_core: Array.new(core_count, 0.0)
     )
