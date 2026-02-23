@@ -1,200 +1,207 @@
 require "../tui/widgets/bar"
 require "../tui/widgets/text"
+require "../tui/widgets/box"
 
-# Drawing functions for ctop panels.
+# Btop-style drawing layout.
+# ┌────────────────────────────────────────────────────────────────────┐
+# │ CPU ████████████░░░░ 45%   MEM ██████████░░░░░ 62%   3.2/8.0 GiB   │
+# │ NET ↓12.5MiB/s ↑2.3MiB/s                                           │
+# ├────────────────────────────────────────────────────────────────────┤
+# │ PID    NAME             CPU%    MEM        STATE    CMD            │
+# │ ═════════════════════════════════════════════════════════════════  │
+# │ 1234   chromium         12.3%   1.2 GiB    Running  /usr/bin/chr.. │
+# └────────────────────────────────────────────────────────────────────┘
 module Ctop::TUI::Draw
   Log = ::Log.for("ctop.draw")
 
-  # Margins
-  TOP_MARGIN  = 2
-  LEFT_MARGIN = 2
+  # Layout constants
+  MARGIN        = 1
+  HEADER_HEIGHT = 3
+  PANELS_HEIGHT = 2
 
-  # Panel height constants (including spacing)
-  CPU_HEIGHT    = 2 # 1 line content + 1 blank
-  MEMORY_HEIGHT = 4 # 1 separator + 2 lines content + 1 blank
-  NET_HEIGHT    = 2 # 1 line content + 1 blank
-  HEADER_HEIGHT = 3 # 1 separator + 1 header + 1 hline
+  # Process table columns
+  COL_PID_X   = MARGIN + 1
+  COL_NAME_X  = COL_PID_X + 10
+  COL_CPU_X   = COL_NAME_X + 20
+  COL_MEM_X   = COL_CPU_X + 9
+  COL_STATE_X = COL_MEM_X + 11
+  COL_CMD_X   = COL_STATE_X + 8
 
-  # Total height of non-process panels
-  PANELS_HEIGHT = CPU_HEIGHT + MEMORY_HEIGHT + NET_HEIGHT + HEADER_HEIGHT
-
-  # Process table column positions (with generous spacing, offset by left margin)
-  COL_PID_X  = LEFT_MARGIN
-  COL_NAME_X = LEFT_MARGIN + 10
-  COL_CPU_X  = LEFT_MARGIN + 38
-  COL_MEM_X  = LEFT_MARGIN + 48
-
-  # Draw the CPU panel.
-  # Format: CPU [████████░░░░░░] 58.3%
-  #         (blank line)
-  def self.draw_cpu(
+  # Draw the top summary panels (CPU, MEM, NET).
+  def self.draw_summary(
     tui : Termisu,
     y : Int32,
-    snapshot : Ctop::Snapshots::CPU,
-    color : Bool = true,
+    metrics : Snapshots::Metrics,
+    color : Bool,
   )
-    x = LEFT_MARGIN
+    # Line 1: CPU bar + percent, MEM bar + percent, memory total
+    x = MARGIN + 1
 
-    label = "CPU "
-    x = Ctop::TUI::Widgets::Text.draw(tui, x, y, label, fg: Termisu::Color.cyan, attr: Termisu::Attribute::Bold)
-
-    bar_width = 20
-    Ctop::TUI::Widgets::Bar.draw_threshold(tui, x, y, bar_width, snapshot.usage, color_enabled: color)
-
+    # CPU section
+    x = Widgets::Text.draw(tui, x, y, "CPU ", fg: Termisu::Color.cyan, attr: Termisu::Attribute::Bold)
+    bar_width = 12
+    Widgets::Bar.draw_threshold(tui, x, y, bar_width, metrics.cpu.usage, color_enabled: color)
     x += bar_width
-    pct = sprintf(" %5.1f%%", snapshot.usage)
-    fg = color ? threshold_color(snapshot.usage) : Termisu::Color.white
-    Ctop::TUI::Widgets::Text.draw(tui, x, y, pct, fg: fg, attr: Termisu::Attribute::Bold)
-  end
+    pct = sprintf(" %5.1f%% ", metrics.cpu.usage)
+    pct_fg = color ? threshold_color(metrics.cpu.usage) : Termisu::Color.white
+    x = Widgets::Text.draw(tui, x, y, pct, fg: pct_fg, attr: Termisu::Attribute::Bold)
 
-  # Draw the Memory panel.
-  # Format: ───────────────────────────────────────────
-  #         MEM [██████░░░░░░░░] 42.1%
-  #              3.2 GiB / 8.0 GiB
-  #         (blank line)
-  def self.draw_memory(
-    tui : Termisu,
-    y : Int32,
-    snapshot : Ctop::Snapshots::Memory,
-    color : Bool = true,
-  )
-    # Separator line above
-    width, _ = tui.size
-    Ctop::TUI::Widgets::Text.draw_hline(tui, y, LEFT_MARGIN, width - LEFT_MARGIN, '─', fg: Termisu::Color.bright_black)
+    # Separator
+    x = Widgets::Text.draw(tui, x, y, "│ ", fg: Termisu::Color.bright_black)
 
-    # Line 1: Label + bar + percentage
-    x = LEFT_MARGIN
-    label = "MEM "
-    x = Ctop::TUI::Widgets::Text.draw(tui, x, y + 1, label, fg: Termisu::Color.cyan, attr: Termisu::Attribute::Bold)
-
-    bar_width = 20
-    Ctop::TUI::Widgets::Bar.draw_threshold(tui, x, y + 1, bar_width, snapshot.percent, color_enabled: color)
-
+    # MEM section
+    x = Widgets::Text.draw(tui, x, y, "MEM ", fg: Termisu::Color.cyan, attr: Termisu::Attribute::Bold)
+    Widgets::Bar.draw_threshold(tui, x, y, bar_width, metrics.memory.percent, color_enabled: color)
     x += bar_width
-    pct = sprintf(" %5.1f%%", snapshot.percent)
-    fg = color ? threshold_color(snapshot.percent) : Termisu::Color.white
-    Ctop::TUI::Widgets::Text.draw(tui, x, y + 1, pct, fg: fg, attr: Termisu::Attribute::Bold)
+    pct = sprintf(" %5.1f%% ", metrics.memory.percent)
+    pct_fg = color ? threshold_color(metrics.memory.percent) : Termisu::Color.white
+    x = Widgets::Text.draw(tui, x, y, pct, fg: pct_fg, attr: Termisu::Attribute::Bold)
 
-    # Line 2: used / total (using binary units)
-    used_gib = snapshot.used_bytes.to_f / (1024 ** 3)
-    total_gib = snapshot.total_bytes.to_f / (1024 ** 3)
-    info = sprintf("     %.1f GiB / %.1f GiB", used_gib, total_gib)
-    Ctop::TUI::Widgets::Text.draw(tui, LEFT_MARGIN, y + 2, info, fg: Termisu::Color.white)
+    # Memory usage
+    used_gib = metrics.memory.used_bytes.to_f / (1024 ** 3)
+    total_gib = metrics.memory.total_bytes.to_f / (1024 ** 3)
+    Widgets::Text.draw(tui, x, y, sprintf(" %.1f/%.1f GiB", used_gib, total_gib), fg: Termisu::Color.white)
+
+    # Line 2: Network stats
+    x = MARGIN + 1
+    rx_str = format_bytes(metrics.net.rx_rate)
+    tx_str = format_bytes(metrics.net.tx_rate)
+    x = Widgets::Text.draw(tui, x, y + 1, "NET ", fg: Termisu::Color.cyan, attr: Termisu::Attribute::Bold)
+    rx_fg = color ? Termisu::Color.green : Termisu::Color.white
+    x = Widgets::Text.draw(tui, x, y + 1, "↓#{rx_str}/s ", fg: rx_fg)
+    tx_fg = color ? Termisu::Color.blue : Termisu::Color.white
+    Widgets::Text.draw(tui, x, y + 1, "↑#{tx_str}/s", fg: tx_fg)
   end
 
-  # Draw the Network panel.
-  # Format: NET ↓ 1.2 MiB/s   ↑ 256 KiB/s
-  #         (blank line)
-  def self.draw_net(
-    tui : Termisu,
-    y : Int32,
-    snapshot : Ctop::Snapshots::Net,
-    color : Bool = true,
-  )
-    x = LEFT_MARGIN
-    label = "NET "
-    x = Ctop::TUI::Widgets::Text.draw(tui, x, y, label, fg: Termisu::Color.cyan, attr: Termisu::Attribute::Bold)
-
-    # Receive (download)
-    rx_str = format_bytes(snapshot.rx_rate)
-    rx = "↓ #{rx_str}/s"
-    fg = color ? Termisu::Color.green : Termisu::Color.white
-    x = Ctop::TUI::Widgets::Text.draw(tui, x, y, rx, fg: fg)
-
-    # Extra spacing between RX and TX
-    x += 3
-
-    # Transmit (upload)
-    tx_str = format_bytes(snapshot.tx_rate)
-    tx = "↑ #{tx_str}/s"
-    fg = color ? Termisu::Color.blue : Termisu::Color.white
-    Ctop::TUI::Widgets::Text.draw(tui, x, y, tx, fg: fg)
-  end
-
-  # Draw the process table header.
-  # Format: ───────────────────────────────────────────
-  #         PID      NAME                   CPU%     MEM
-  #         ══════════════════════════════════════════
+  # Draw the process table header with separator.
   def self.draw_proc_header(
     tui : Termisu,
     y : Int32,
-    color : Bool = true,
+    color : Bool,
   )
     width, _ = tui.size
 
-    # Separator line above
-    Ctop::TUI::Widgets::Text.draw_hline(tui, y, LEFT_MARGIN, width - LEFT_MARGIN, '─', fg: Termisu::Color.bright_black)
+    # Separator line
+    Widgets::Box.draw_hline(tui, MARGIN, y, width - 2 * MARGIN, '─', Termisu::Color.bright_black)
 
+    # Header row
+    y += 1
     fg = color ? Termisu::Color.bright_yellow : Termisu::Color.white
-    Ctop::TUI::Widgets::Text.draw(tui, COL_PID_X, y + 1, "PID", fg: fg, attr: Termisu::Attribute::Bold)
-    Ctop::TUI::Widgets::Text.draw(tui, COL_NAME_X, y + 1, "NAME", fg: fg, attr: Termisu::Attribute::Bold)
-    Ctop::TUI::Widgets::Text.draw(tui, COL_CPU_X, y + 1, "CPU%", fg: fg, attr: Termisu::Attribute::Bold)
-    Ctop::TUI::Widgets::Text.draw(tui, COL_MEM_X, y + 1, "MEM", fg: fg, attr: Termisu::Attribute::Bold)
+    Widgets::Text.draw(tui, COL_PID_X, y, "PID       ", fg: fg, attr: Termisu::Attribute::Bold)
+    Widgets::Text.draw(tui, COL_NAME_X, y, "NAME                ", fg: fg, attr: Termisu::Attribute::Bold)
+    Widgets::Text.draw(tui, COL_CPU_X, y, "CPU%     ", fg: fg, attr: Termisu::Attribute::Bold)
+    Widgets::Text.draw(tui, COL_MEM_X, y, "MEM         ", fg: fg, attr: Termisu::Attribute::Bold)
+    Widgets::Text.draw(tui, COL_STATE_X, y, "STATE   ", fg: fg, attr: Termisu::Attribute::Bold)
+    Widgets::Text.draw(tui, COL_CMD_X, y, "CMD", fg: fg, attr: Termisu::Attribute::Bold)
 
     # Double line under header
-    Ctop::TUI::Widgets::Text.draw_hline(tui, y + 2, LEFT_MARGIN, width - LEFT_MARGIN, '═', fg: Termisu::Color.bright_black)
+    Widgets::Box.draw_hline(tui, MARGIN, y + 1, width - 2 * MARGIN, '═', Termisu::Color.bright_black)
   end
 
-  # Draw a single process row.
-  # Format: 1234    chrome                 1.8%   439M
+  # Draw a single process row with optional selection highlight.
   def self.draw_proc_row(
     tui : Termisu,
     y : Int32,
-    proc : Ctop::Snapshots::ProcessInfo,
-    color : Bool = true,
+    proc : Snapshots::ProcessInfo,
+    color : Bool,
+    selected : Bool = false,
+    width : Int32 = 80,
   )
-    # PID
-    Ctop::TUI::Widgets::Text.draw(tui, COL_PID_X, y, sprintf("%-7d", proc.pid), fg: Termisu::Color.bright_black)
+    row_fg, row_attr = row_style(selected)
 
-    # NAME (truncated to fit)
-    name = proc.name[0..26]
-    name = name.ljust(27)
-    Ctop::TUI::Widgets::Text.draw(tui, COL_NAME_X, y, name, fg: Termisu::Color.white)
+    Widgets::Text.draw(tui, COL_PID_X, y, sprintf("%-9d", proc.pid),
+      fg: selected ? Termisu::Color.cyan : Termisu::Color.bright_black, attr: row_attr)
 
-    # CPU% (right-aligned under header)
-    cpu = sprintf("%6.1f%%", proc.cpu_percent)
-    cpu_fg = color ? threshold_color(proc.cpu_percent) : Termisu::Color.white
-    Ctop::TUI::Widgets::Text.draw(tui, COL_CPU_X, y, cpu, fg: cpu_fg)
+    name_max_width = COL_CPU_X - COL_NAME_X - 1
+    name = truncate_string(proc.name, name_max_width).ljust(name_max_width)
+    Widgets::Text.draw(tui, COL_NAME_X, y, name, fg: row_fg, attr: row_attr)
 
-    # MEM (using proper binary units with decimal precision)
-    mem = format_memory_clean(proc.memory_kb)
-    Ctop::TUI::Widgets::Text.draw(tui, COL_MEM_X, y, mem, fg: Termisu::Color.white)
+    cpu_fg = select_or_color(selected, color, threshold_color(proc.cpu_percent))
+    Widgets::Text.draw(tui, COL_CPU_X, y, sprintf("%-8.1f%%", proc.cpu_percent), fg: cpu_fg, attr: row_attr)
+
+    mem = format_memory(proc.memory_kb).ljust(12)
+    mem_pct = (proc.memory_kb.to_f / (1024 * 1024) * 100).clamp(0.0, 100.0)
+    Widgets::Text.draw(tui, COL_MEM_X, y, mem, fg: select_or_color(selected, color, threshold_color(mem_pct)), attr: row_attr)
+
+    Widgets::Text.draw(tui, COL_STATE_X, y, sprintf("%-7s", state_char(proc.state)),
+      fg: select_or_color(selected, color, state_color(proc.state)), attr: row_attr)
+
+    cmd = proc.command.empty? ? proc.name : File.basename(proc.command.split('\0').first)
+    Widgets::Text.draw(tui, COL_CMD_X, y, truncate_string(cmd, width - COL_CMD_X - MARGIN - 1), fg: row_fg, attr: row_attr)
   end
 
-  # Format bytes/sec as human readable (KiB/s, MiB/s, GiB/s)
+  # Row style based on selection state.
+  private def self.row_style(selected : Bool) : {Termisu::Color, Termisu::Attribute}
+    selected ? {Termisu::Color.cyan, Termisu::Attribute::Bold} : {Termisu::Color.white, Termisu::Attribute::None}
+  end
+
+  # Return cyan if selected, colored value if color enabled, else white.
+  private def self.select_or_color(selected : Bool, color : Bool, colored : Termisu::Color) : Termisu::Color
+    return Termisu::Color.cyan if selected
+    color ? colored : Termisu::Color.white
+  end
+
+  # Get color for process state.
+  private def self.state_color(state : Hardware::PID::Stat::State) : Termisu::Color
+    case state
+    when .running?  then Termisu::Color.green
+    when .sleeping? then Termisu::Color.blue
+    when .stopped?  then Termisu::Color.red
+    when .zombie?   then Termisu::Color.bright_magenta
+    else                 Termisu::Color.white
+    end
+  end
+
+  # Format memory as human readable.
+  private def self.format_memory(kib : Int32) : String
+    return "#{kib}K  " if kib < 1024
+
+    mib = kib.to_f / 1024
+    return sprintf("%.1fM  ", mib) if mib < 1024
+
+    gib = mib / 1024
+    sprintf("%.1fG  ", gib)
+  end
+
+  # Format bytes per second as human readable.
   private def self.format_bytes(rate : Float64) : String
-    return "   0 B" if rate < 1024
+    return "    0 B" if rate < 1024
 
     kib = rate / 1024
-    return sprintf("%4.0f KiB", kib) if kib < 1024
+    return sprintf("%6.0f KiB", kib) if kib < 1024
 
     mib = kib / 1024
-    return sprintf("%4.1f MiB", mib) if mib < 1024
+    return sprintf("%6.1f MiB", mib) if mib < 1024
 
     gib = mib / 1024
-    sprintf("%4.2f GiB", gib)
+    sprintf("%6.2f GiB", gib)
   end
 
-  # Format KiB as human readable with proper decimal handling
-  # Shows: "123K", "45.6M", "1.2G"
-  private def self.format_memory_clean(kib : Int32) : String
-    return "#{kib}K" if kib < 1024
-
-    # Use float division for proper decimal
-    mib = kib.to_f / 1024
-    return sprintf("%.1fM", mib) if mib < 1024
-
-    gib = mib / 1024
-    sprintf("%.1fG", gib)
-  end
-
-  # Get color based on threshold (green < 50 < yellow < 80 < red)
+  # Get color based on threshold.
   private def self.threshold_color(percent : Float64) : Termisu::Color
     pct = percent.nan? || percent.infinite? ? 0.0 : percent
     case
     when pct < 50 then Termisu::Color.green
     when pct < 80 then Termisu::Color.yellow
     else               Termisu::Color.red
+    end
+  end
+
+  # Truncate string to max width, adding ".." if truncated.
+  private def self.truncate_string(str : String, max_width : Int32) : String
+    return str if str.size <= max_width
+    return "…" if max_width <= 1
+    str[0..(max_width - 2)] + "…"
+  end
+
+  # Convert process state to single character.
+  private def self.state_char(state : Hardware::PID::Stat::State) : String
+    case state
+    when .running?  then "R"
+    when .sleeping? then "S"
+    when .stopped?  then "T"
+    when .zombie?   then "Z"
+    else                 "?"
     end
   end
 end

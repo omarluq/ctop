@@ -11,6 +11,7 @@ class Ctop
   getter interval : Float64
   getter proc_limit : Int32
   getter? color : Bool
+  property selected : Int32 = 0
 
   def initialize(
     @interval : Float64 = 1.0,
@@ -20,10 +21,6 @@ class Ctop
   end
 
   # Start the TUI event loop.
-  #
-  # Uses Termisu's kernel-backed timer to emit Tick events at the
-  # configured interval. Each tick collects system metrics and
-  # redraws the display.
   def run
     tui = Termisu.new
     tui.enable_timer(interval.seconds)
@@ -46,40 +43,50 @@ class Ctop
       when Termisu::Event::Resize
         tui.sync
       when Termisu::Event::Key
-        break if event.key.q? || event.key.escape? || event.ctrl_c?
+        case event.key
+        when .q?, .escape?
+          break
+        when .up?
+          @selected = (@selected - 1).clamp(0, metrics.proc.processes.size - 1)
+          tui.clear
+          draw(tui, metrics)
+          tui.render
+        when .down?
+          @selected = (@selected + 1).clamp(0, metrics.proc.processes.size - 1)
+          tui.clear
+          draw(tui, metrics)
+          tui.render
+        end
+        break if event.ctrl_c?
       end
     end
   ensure
     tui.try &.close
   end
 
-  # Draw all panels top-to-bottom.
+  # Draw all panels using btop-style layout.
   private def draw(tui : Termisu, metrics : Snapshots::Metrics)
-    y = Ctop::TUI::Draw::TOP_MARGIN
+    width, height = tui.size
+    y = TUI::Draw::MARGIN
 
-    # CPU panel
-    TUI::Draw.draw_cpu(tui, y, metrics.cpu, color?)
-    y += Ctop::TUI::Draw::CPU_HEIGHT
+    # Summary panels (CPU, MEM, NET on 2 lines)
+    TUI::Draw.draw_summary(tui, y, metrics, color?)
+    y += TUI::Draw::PANELS_HEIGHT
 
-    # Memory panel
-    TUI::Draw.draw_memory(tui, y, metrics.memory, color?)
-    y += TUI::Draw::MEMORY_HEIGHT
-
-    # Network panel
-    TUI::Draw.draw_net(tui, y, metrics.net, color?)
-    y += TUI::Draw::NET_HEIGHT
-
-    # Process table header (includes separator and hline)
+    # Process table header
     TUI::Draw.draw_proc_header(tui, y, color?)
     y += TUI::Draw::HEADER_HEIGHT
 
-    # Process rows (fill remaining height)
-    _, height = tui.size
-    available = height - y
+    # Process rows
+    available = height - y - TUI::Draw::MARGIN
     count = {available, metrics.proc.processes.size}.min
 
+    # Clamp selection
+    @selected = @selected.clamp(0, {count - 1, 0}.max)
+
     count.times do |i|
-      TUI::Draw.draw_proc_row(tui, y + i, metrics.proc.processes[i], color?)
+      TUI::Draw.draw_proc_row(tui, y + i, metrics.proc.processes[i], color?,
+        selected: i == @selected, width: width)
     end
   end
 end

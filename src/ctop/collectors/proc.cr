@@ -56,13 +56,27 @@ class Ctop::Collectors::Proc < Ctop::Collectors::Base(Ctop::Snapshots::Proc)
     stat = @pid_stats[pid.number]? || pid.stat(@cpu)
     @pid_stats[pid.number] = stat
 
+    # Get name with fallbacks: pid.name -> command basename -> skip
+    proc_name = pid.name.strip
+    if proc_name.empty?
+      proc_name = begin
+        cmd = pid.command.strip
+        cmd.empty? ? "" : File.basename(cmd.split('\0').first || cmd)
+      rescue
+        ""
+      end
+    end
+
+    # Skip processes with no identifiable name
+    return nil if proc_name.empty?
+
     Ctop::Snapshots::ProcessInfo.new(
       pid: pid.number,
-      name: pid.name,
+      name: proc_name,
       state: stat.state,
       cpu_percent: stat.cpu_usage!,
       memory_kb: pid.memory,
-      command: pid.command
+      command: (pid.command rescue "")
     )
   rescue
     # Process may have exited between iteration and access
